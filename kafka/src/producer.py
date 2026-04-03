@@ -2,6 +2,7 @@ import json
 import uuid
 import time
 import random
+import os
 from datetime import datetime
 from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
@@ -11,10 +12,10 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 # Загружаем схему из файла .avsc
 from schema_loader import get_order_event_schema
 
-# Конфигурация
-KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
-SCHEMA_REGISTRY_URL = "http://schema-registry:8081"
-TOPIC_NAME = "orders-events"
+# Конфигурация - читаем из переменных окружения
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "http://schema-registry:8081")
+TOPIC_NAME = os.getenv("TOPIC_NAME", "orders-events")
 
 # Загружаем схему AVRO из файла
 AVRO_SCHEMA_STR = get_order_event_schema()
