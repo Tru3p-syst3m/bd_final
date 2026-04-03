@@ -12,14 +12,14 @@
 ```bash
 cd kafka
 mkdir -p jdbc-connector
-wget https://d1i4a15mxbxib1.cloudfront.net/api/plugins/confluentinc/kafka-connect-jdbc/versions/10.7.1/confluentinc-kafka-connect-jdbc-10.7.1.zip -O jdbc-connector/kafka-connect-jdbc.zip
+wget https://d1i4a15mxbxib1.cloudfront.net/api/plugins/confluentinc/kafka-connect-jdbc/versions/10.7.4/confluentinc-kafka-connect-jdbc-10.7.4.zip -O jdbc-connector/kafka-connect-jdbc.zip
 ```
 
 Или через curl:
 ```bash
 cd kafka
 mkdir -p jdbc-connector
-curl -L https://d1i4a15mxbxib1.cloudfront.net/api/plugins/confluentinc/kafka-connect-jdbc/versions/10.7.1/confluentinc-kafka-connect-jdbc-10.7.1.zip -o jdbc-connector/kafka-connect-jdbc.zip
+curl -L https://d1i4a15mxbxib1.cloudfront.net/api/plugins/confluentinc/kafka-connect-jdbc/versions/10.7.4/confluentinc-kafka-connect-jdbc-10.7.4.zip -o jdbc-connector/kafka-connect-jdbc.zip
 ```
 
 **Распаковать архив:**
@@ -32,9 +32,9 @@ unzip kafka-connect-jdbc.zip
 ```
 kafka/
 ├── jdbc-connector/
-│   └── confluentinc-kafka-connect-jdbc-10.7.1/
+│   └── confluentinc-kafka-connect-jdbc-10.7.4/
 │       ├── lib/
-│       │   └── kafka-connect-jdbc-10.7.1.jar
+│       │   └── kafka-connect-jdbc-10.7.4.jar
 │       └── ...
 ```
 
