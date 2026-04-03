@@ -4,10 +4,10 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
 
-RUN pip install confluent-kafka requests
-
-COPY src/producer.py ./producer.py
-COPY src/schema_loader.py ./schema_loader.py
 COPY schema/ ./schema/
+COPY config/ ./config/
+COPY init-kafka.sh ./init-kafka.sh
 
-CMD ["python", "producer.py"]
+RUN chmod +x ./init-kafka.sh
+
+CMD ["./init-kafka.sh"]

@@ -4,9 +4,10 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
 
-RUN pip install confluent-kafka requests psycopg2-binary
+RUN pip install confluent-kafka psycopg2-binary
 
-COPY src/ ./src/
+COPY src/consumer_auto.py ./consumer.py
+COPY src/schema_loader.py ./schema_loader.py
 COPY schema/ ./schema/
 
-CMD ["python", "src/consumer_manual.py"]
+CMD ["python", "consumer.py"]
