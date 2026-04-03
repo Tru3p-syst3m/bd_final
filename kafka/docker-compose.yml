@@ -121,7 +121,9 @@ services:
 
   # 8. Stream App (трансформация, агрегация, окна)
   kafka-stream-app:
-    build: ./kafka-stream-app
+    build:
+      context: .
+      dockerfile: kafka-stream-app/Dockerfile
     container_name: kafka-stream-app
     depends_on:
       - kafka-init
@@ -131,7 +133,9 @@ services:
 
   # 9. Твой Producer (Python)
   kafka-producer:
-    build: ./kafka-producer
+    build:
+      context: .
+      dockerfile: kafka-producer/Dockerfile
     container_name: kafka-producer
     depends_on:
       - kafka-init
@@ -141,7 +145,9 @@ services:
 
   # 10. Твой Consumer (Python) - группа 1
   kafka-consumer:
-    build: ./kafka-consumer
+    build:
+      context: .
+      dockerfile: kafka-consumer/Dockerfile
     container_name: kafka-consumer-1
     depends_on:
       - kafka
@@ -158,7 +164,9 @@ services:
 
   # 11. Второй Consumer (Python) - группа 2
   kafka-consumer-2:
-    build: ./kafka-consumer
+    build:
+      context: .
+      dockerfile: kafka-consumer/Dockerfile
     container_name: kafka-consumer-2
     depends_on:
       - kafka
