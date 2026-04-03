@@ -87,6 +87,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./bd/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   # 6. Kafka UI - веб-интерфейс для наблюдения
   kafka-ui:

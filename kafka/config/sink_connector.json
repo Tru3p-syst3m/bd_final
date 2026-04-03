@@ -1,0 +1,18 @@
+{
+  "name": "postgres-sink-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "connection.url": "jdbc:postgresql://postgres:5432/shopdb",
+    "connection.user": "postgres",
+    "connection.password": "postgres",
+    "topics": "shop-events",
+    "tasks.max": "1",
+    "auto.create": "false",
+    "insert.mode": "insert",
+    "table.name.format": "orders",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false"
+  }
+}
