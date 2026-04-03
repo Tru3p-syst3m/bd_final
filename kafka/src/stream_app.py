@@ -1,128 +1,222 @@
-import faust
-from datetime import datetime
+"""
+Простое приложение Kafka Streams для обработки событий заказов.
+Использует confluent-kafka вместо Faust для простоты.
+
+Функционал:
+1. Трансформация - добавление processedAt
+2. Агрегация - сумма заказов по клиентам
+3. Оконное вычисление - количество заказов за 5 минут
+"""
+
+import json
+import time
+from datetime import datetime, timedelta
+from collections import defaultdict
+from confluent_kafka import Consumer, Producer, KafkaException
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroDeserializer, AvroSerializer
+from confluent_kafka.serialization import SerializationContext, MessageField
+
+# Загружаем схемы из файлов .avsc
+from schema_loader import (
+    get_order_event_schema,
+    get_transformed_event_schema,
+    get_aggregated_event_schema,
+    get_windowed_event_schema
+)
 
 # Конфигурация
 KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
+SCHEMA_REGISTRY_URL = "http://schema-registry:8081"
+
+# Топики
 TOPIC_INPUT = "orders-events"
 TOPIC_TRANSFORMED = "orders-transformed"
-TOPIC_AGGREGATED = "orders-by-customer"
-TOPIC_WINDOWED = "orders-windowed"
+TOPIC_AGGREGATED = "customer-order-totals"
+TOPIC_WINDOWED = "orders-windowed-count"
 
-# Создаем приложение Faust
-app = faust.App(
-    'order-stream-app',
-    broker=f'kafka://{KAFKA_BOOTSTRAP_SERVERS}',
-    store='memory://'
-)
+# Загружаем все схемы из файлов
+INPUT_SCHEMA_STR = get_order_event_schema()
+TRANSFORMED_SCHEMA = get_transformed_event_schema()
+AGGREGATED_SCHEMA = get_aggregated_event_schema()
+WINDOWED_SCHEMA = get_windowed_event_schema()
 
-# Модели данных
-class OrderEvent(faust.Record):
-    """Модель входного события заказа"""
-    eventId: str
-    eventType: str
-    entityId: str
-    timestamp: str
-    source: str
-    version: str
-    payload: dict
+print(f"Подключение к Schema Registry: {SCHEMA_REGISTRY_URL}...")
+schema_registry_client = SchemaRegistryClient({"url": SCHEMA_REGISTRY_URL})
 
-class TransformedEvent(faust.Record):
-    """Модель трансформированного события"""
-    eventId: str
-    eventType: str
-    entityId: str
-    timestamp: str
-    processedAt: str
-    source: str
-    version: str
-    payload: dict
+# Десериализатор для входных сообщений (использует схему из Schema Registry)
+avro_deserializer = AvroDeserializer(schema_registry_client, INPUT_SCHEMA_STR)
 
-# Таблицы для агрегации и окон
-customer_totals = app.Table('customer-totals', default=float)
-windowed_orders = app.Table('windowed-orders', default=int).tumbling(300, expires=305)
+# Сериализаторы для выходных топиков
+transformed_serializer = AvroSerializer(schema_registry_client, TRANSFORMED_SCHEMA)
+aggregated_serializer = AvroSerializer(schema_registry_client, AGGREGATED_SCHEMA)
+windowed_serializer = AvroSerializer(schema_registry_client, WINDOWED_SCHEMA)
 
-def get_transformed_event(order, processed_at):
-    """Создание трансформированного события"""
-    return TransformedEvent(
-        eventId=order.eventId,
-        eventType=order.eventType,
-        entityId=order.entityId,
-        timestamp=order.timestamp,
-        processedAt=processed_at,
-        source=order.source,
-        version=order.version,
-        payload=order.payload
+print("Сериализаторы и десериализаторы готовы.")
+
+# Хранилище состояния для агрегации
+customer_totals = defaultdict(float)
+
+# Хранилище для оконных вычислений (5 минут = 300 секунд)
+WINDOW_SIZE_SECONDS = 300
+window_events = []  # Список (timestamp, count)
+
+def get_consumer_config():
+    """Конфигурация консьюмера"""
+    return {
+        'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
+        'group.id': 'stream-app-group',
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': True
+    }
+
+def get_producer_config():
+    """Конфигурация продюсера"""
+    return {
+        'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS
+    }
+
+def deserialize_event(binary_message):
+    """Десериализация входного события"""
+    return avro_deserializer(
+        binary_message,
+        SerializationContext(TOPIC_INPUT, MessageField.VALUE)
     )
 
-def send_aggregated_result(customer_id, total):
-    """Отправка результата агрегации"""
-    return {
-        'customerId': customer_id,
-        'totalAmount': total,
-        'currency': 'RUB'
+def transform_event(event):
+    """Трансформация события - добавление processedAt"""
+    processed_at = datetime.utcnow().isoformat()
+    transformed = {
+        "eventId": event["eventId"],
+        "eventType": event["eventType"],
+        "entityId": event["entityId"],
+        "timestamp": event["timestamp"],
+        "processedAt": processed_at,
+        "source": event["source"],
+        "version": event["version"],
+        "payload": {
+            "orderId": event["payload"]["orderId"],
+            "customerId": event["payload"]["customerId"],
+            "amount": float(event["payload"]["amount"]),
+            "currency": event["payload"]["currency"],
+            "status": event["payload"]["status"]
+        }
     }
+    return transformed, processed_at
 
-def send_windowed_result(count):
-    """Отправка результата оконного вычисления"""
-    return {
-        'window': '5min',
-        'count': count,
-        'timestamp': datetime.utcnow().isoformat()
-    }
-
-@app.agent(value_type=OrderEvent)
-async def transform_orders(orders):
-    """Трансформация событий - добавление processedAt"""
-    async for order in orders:
-        processed_at = datetime.utcnow().isoformat()
-        transformed = get_transformed_event(order, processed_at)
+def aggregate_event(event):
+    """Агрегация суммы заказов по клиенту"""
+    customer_id = event["payload"].get("customerId", "unknown")
+    amount = float(event["payload"].get("amount", 0))
+    
+    if event["eventType"] == "OrderPaid":
+        customer_totals[customer_id] += amount
+        total = customer_totals[customer_id]
         
-        await app.send(TOPIC_TRANSFORMED, value=transformed)
-        print(f"[TRANSFORM] {order.eventId} -> processedAt={processed_at}")
-        yield transformed
+        result = {
+            "customerId": customer_id,
+            "totalAmount": total,
+            "currency": "RUB",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        return result, total
+    return None, 0
 
-@app.agent(value_type=OrderEvent)
-async def aggregate_by_customer(orders):
-    """Агрегация суммы заказов по клиентам"""
-    async for order in orders.group_by(OrderEvent.entityId):
-        customer_id = order.payload.get('customerId', 'unknown')
-        amount = order.payload.get('amount', 0)
-        
-        if order.eventType == 'OrderPaid':
-            customer_totals[customer_id] += amount
-            total = customer_totals[customer_id]
-            print(f"[AGGREGATE] {customer_id}: {total:.2f} RUB")
-            
-            result = send_aggregated_result(customer_id, total)
-            await app.send(TOPIC_AGGREGATED, key=customer_id, value=result)
-
-@app.agent(value_type=OrderEvent)
-async def windowed_count(orders):
+def windowed_count(event):
     """Оконное вычисление - количество заказов за 5 минут"""
-    async for order in orders:
-        windowed_orders['count'] += 1
-        count = windowed_orders['count']
-        
-        print(f"[WINDOW] За 5 мин: {count} заказов")
-        
-        result = send_windowed_result(count)
-        await app.send(TOPIC_WINDOWED, key='order_count', value=result)
+    now = datetime.utcnow()
+    window_start = now - timedelta(seconds=WINDOW_SIZE_SECONDS)
+    
+    # Добавляем текущее событие
+    window_events.append(now)
+    
+    # Удаляем старые события за пределами окна
+    global window_events
+    window_events = [ts for ts in window_events if ts > window_start]
+    
+    count = len(window_events)
+    
+    result = {
+        "window": "5min",
+        "count": count,
+        "timestamp": now.isoformat()
+    }
+    return result, count
 
-@app.task
-async def process_orders():
-    """Основной цикл обработки событий"""
-    consumer = app.consumer(topic=TOPIC_INPUT)
-    async for event in consumer:
-        try:
-            data = event.value
-            order = OrderEvent(**data)
+def main():
+    """Основной цикл обработки"""
+    consumer = Consumer(get_consumer_config())
+    producer = Producer(get_producer_config())
+    
+    consumer.subscribe([TOPIC_INPUT])
+    
+    print(f"\n=== Stream App запущен ===")
+    print(f"Входной топик: {TOPIC_INPUT}")
+    print(f"Топик трансформированных: {TOPIC_TRANSFORMED}")
+    print(f"Топик агрегированных: {TOPIC_AGGREGATED}")
+    print(f"Топик оконных: {TOPIC_WINDOWED}")
+    print("=" * 40)
+    
+    try:
+        while True:
+            msg = consumer.poll(1.0)
             
-            await transform_orders.send(value=order)
-            await aggregate_by_customer.send(value=order)
-            await windowed_count.send(value=order)
+            if msg is None:
+                continue
             
-        except Exception as e:
-            print(f"[ERROR] Ошибка: {e}")
+            if msg.error():
+                print(f"Ошибка: {msg.error()}")
+                continue
+            
+            # Десериализация события
+            try:
+                event = deserialize_event(msg.value())
+                event_id = event.get("eventId", "unknown")
+                event_type = event.get("eventType", "unknown")
+                
+                print(f"\n[STREAM] Получено событие: {event_id} ({event_type})")
+                
+                # 1. Трансформация
+                transformed, processed_at = transform_event(event)
+                producer.produce(
+                    topic=TOPIC_TRANSFORMED,
+                    key=transformed["eventId"].encode('utf-8'),
+                    value=transformed_serializer(transformed, SerializationContext(TOPIC_TRANSFORMED, MessageField.VALUE)),
+                    callback=lambda err, msg: print(f"  [TRANSFORM] Отправлено в {msg.topic()}") if not err else print(f"  [TRANSFORM] Ошибка: {err}")
+                )
+                print(f"  [TRANSFORM] Добавлено processedAt={processed_at}")
+                
+                # 2. Агрегация
+                agg_result, total = aggregate_event(event)
+                if agg_result:
+                    producer.produce(
+                        topic=TOPIC_AGGREGATED,
+                        key=agg_result["customerId"].encode('utf-8'),
+                        value=aggregated_serializer(agg_result, SerializationContext(TOPIC_AGGREGATED, MessageField.VALUE)),
+                        callback=lambda err, msg: print(f"  [AGGREGATE] Отправлено в {msg.topic()}") if not err else print(f"  [AGGREGATE] Ошибка: {err}")
+                    )
+                    print(f"  [AGGREGATE] {agg_result['customerId']}: {total:.2f} RUB")
+                
+                # 3. Оконное вычисление
+                window_result, count = windowed_count(event)
+                producer.produce(
+                    topic=TOPIC_WINDOWED,
+                    key=b"order_count",
+                    value=windowed_serializer(window_result, SerializationContext(TOPIC_WINDOWED, MessageField.VALUE)),
+                    callback=lambda err, msg: print(f"  [WINDOW] Отправлено в {msg.topic()}") if not err else print(f"  [WINDOW] Ошибка: {err}")
+                )
+                print(f"  [WINDOW] За 5 мин: {count} заказов")
+                
+                producer.flush()
+                
+            except Exception as e:
+                print(f"Ошибка обработки: {e}")
+                continue
+    
+    except KeyboardInterrupt:
+        print("\nОстановка Stream App...")
+    finally:
+        consumer.close()
 
-if __name__ == '__main__':
-    app.main()
+if __name__ == "__main__":
+    main()

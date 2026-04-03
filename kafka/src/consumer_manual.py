@@ -1,20 +1,28 @@
 import json
 import time
 from confluent_kafka import Consumer, KafkaException, TopicPartition, Producer
-import fastavro
-from fastavro.schema import load_schema
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroDeserializer
+from confluent_kafka.serialization import SerializationContext, MessageField
+
+# Загружаем схему из файла .avsc
+from schema_loader import get_order_event_schema
 
 # Конфигурация
 KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
+SCHEMA_REGISTRY_URL = "http://schema-registry:8081"
 TOPIC_NAME = "orders-events"
 GROUP_ID = "order-consumer-manual"
 DLQ_TOPIC = "orders-dlq"  # Топик для ошибочных сообщений
-SCHEMA_FILE = "/app/kafka/schema/event.avsc"
 
-# Загружаем схему AVRO при старте
-print(f"Загрузка схемы AVRO из {SCHEMA_FILE}...")
-parsed_schema = fastavro.parse_schema(load_schema(SCHEMA_FILE))
-print("Схема успешно загружена.")
+# Инициализация клиента Schema Registry и десериализатора
+print(f"Подключение к Schema Registry: {SCHEMA_REGISTRY_URL}...")
+schema_registry_client = SchemaRegistryClient({"url": SCHEMA_REGISTRY_URL})
+
+# Загружаем схему для десериализации
+AVRO_SCHEMA_STR = get_order_event_schema()
+avro_deserializer = AvroDeserializer(schema_registry_client, AVRO_SCHEMA_STR)
+print("Десериализатор AVRO готов.")
 
 def get_consumer_config():
     """Конфигурация консьюмера с ручным коммитом"""
@@ -26,8 +34,11 @@ def get_consumer_config():
     }
 
 def deserialize_from_avro(binary_message):
-    """Десериализация сообщения из бинарного формата Avro"""
-    return fastavro.schemaless_reader(parsed_schema, binary_message)
+    """Десериализация сообщения из бинарного формата Avro через Schema Registry"""
+    return avro_deserializer(
+        binary_message, 
+        SerializationContext(TOPIC_NAME, MessageField.VALUE)
+    )
 
 def process_event(event):
     """Обработка события с возможной ошибкой"""

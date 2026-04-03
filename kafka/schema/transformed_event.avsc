@@ -1,0 +1,28 @@
+{
+  "type": "record",
+  "name": "TransformedEvent",
+  "namespace": "com.example.orders",
+  "fields": [
+    {"name": "eventId", "type": "string"},
+    {"name": "eventType", "type": "string"},
+    {"name": "entityId", "type": "string"},
+    {"name": "timestamp", "type": "string"},
+    {"name": "processedAt", "type": "string"},
+    {"name": "source", "type": "string"},
+    {"name": "version", "type": "string"},
+    {
+      "name": "payload",
+      "type": {
+        "type": "record",
+        "name": "TransformedPayload",
+        "fields": [
+          {"name": "orderId", "type": "string"},
+          {"name": "customerId", "type": "string"},
+          {"name": "amount", "type": "double"},
+          {"name": "currency", "type": "string"},
+          {"name": "status", "type": "string"}
+        ]
+      }
+    }
+  ]
+}

@@ -80,9 +80,9 @@ services:
     image: postgres:15
     container_name: postgres
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: orders_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shopdb
     ports:
       - "5432:5432"
     volumes:
@@ -129,9 +129,9 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       DB_HOST: postgres
-      DB_USER: user
-      DB_PASSWORD: password
-      DB_NAME: orders_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: shopdb
 
 volumes:
   postgres_data:

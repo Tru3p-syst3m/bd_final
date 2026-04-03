@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "CustomerTotal",
+  "namespace": "com.example.orders",
+  "fields": [
+    {"name": "customerId", "type": "string"},
+    {"name": "totalAmount", "type": "double"},
+    {"name": "currency", "type": "string"},
+    {"name": "timestamp", "type": "string"}
+  ]
+}
