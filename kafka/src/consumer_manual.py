@@ -1,12 +1,20 @@
 import json
 import time
-from confluent_kafka import Consumer, KafkaException, TopicPartition
+from confluent_kafka import Consumer, KafkaException, TopicPartition, Producer
+import fastavro
+from fastavro.schema import load_schema
 
 # Конфигурация
 KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
 TOPIC_NAME = "orders-events"
 GROUP_ID = "order-consumer-manual"
 DLQ_TOPIC = "orders-dlq"  # Топик для ошибочных сообщений
+SCHEMA_FILE = "/app/kafka/schema/event.avsc"
+
+# Загружаем схему AVRO при старте
+print(f"Загрузка схемы AVRO из {SCHEMA_FILE}...")
+parsed_schema = fastavro.parse_schema(load_schema(SCHEMA_FILE))
+print("Схема успешно загружена.")
 
 def get_consumer_config():
     """Конфигурация консьюмера с ручным коммитом"""
@@ -16,6 +24,10 @@ def get_consumer_config():
         'auto.offset.reset': 'earliest',
         'enable.auto.commit': False  # Отключаем автокоммит
     }
+
+def deserialize_from_avro(binary_message):
+    """Десериализация сообщения из бинарного формата Avro"""
+    return fastavro.schemaless_reader(parsed_schema, binary_message)
 
 def process_event(event):
     """Обработка события с возможной ошибкой"""
@@ -46,8 +58,6 @@ def send_to_dlq(producer, msg, error):
 
 def main():
     """Основной цикл консьюмера с ручным коммитом"""
-    from confluent_kafka import Producer
-    
     consumer = Consumer(get_consumer_config())
     consumer.subscribe([TOPIC_NAME])
     
@@ -55,6 +65,7 @@ def main():
     
     print(f"Консьюмер запущен (ручной коммит). Группа: {GROUP_ID}")
     print(f"DLQ топик: {DLQ_TOPIC}")
+    print("Формат сообщений: AVRO (бинарный)")
     
     max_retries = 3
     
@@ -69,9 +80,9 @@ def main():
                 print(f"Ошибка: {msg.error()}")
                 continue
             
-            # Парсим сообщение
+            # Десериализуем сообщение из AVRO
             try:
-                event = json.loads(msg.value().decode('utf-8'))
+                event = deserialize_from_avro(msg.value())
                 print(f"\n[MANUAL] Получено: {event['eventId']} (попытка 1)")
                 
                 retry_count = 0
@@ -99,8 +110,8 @@ def main():
                     consumer.commit(msg)
                     print("           -> Коммит оффсета выполнен")
                     
-            except json.JSONDecodeError as e:
-                print(f"Ошибка парсинга JSON: {e}")
+            except Exception as e:
+                print(f"Ошибка десериализации AVRO: {e}")
                 consumer.commit(msg)  # Коммитим битое сообщение чтобы не зациклиться
             
             time.sleep(0.5)

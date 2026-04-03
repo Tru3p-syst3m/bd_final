@@ -1,11 +1,19 @@
 import json
 import time
 from confluent_kafka import Consumer, KafkaException
+import fastavro
+from fastavro.schema import load_schema
 
 # Конфигурация
 KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
 TOPIC_NAME = "orders-events"
 GROUP_ID = "order-consumer-auto"
+SCHEMA_FILE = "/app/kafka/schema/event.avsc"
+
+# Загружаем схему AVRO при старте
+print(f"Загрузка схемы AVRO из {SCHEMA_FILE}...")
+parsed_schema = fastavro.parse_schema(load_schema(SCHEMA_FILE))
+print("Схема успешно загружена.")
 
 def get_consumer_config():
     """Конфигурация консьюмера с автокоммитом"""
@@ -16,6 +24,10 @@ def get_consumer_config():
         'enable.auto.commit': True,
         'auto.commit.interval.ms': 1000
     }
+
+def deserialize_from_avro(binary_message):
+    """Десериализация сообщения из бинарного формата Avro"""
+    return fastavro.schemaless_reader(parsed_schema, binary_message)
 
 def process_event(event):
     """Обработка события"""
@@ -36,6 +48,7 @@ def main():
     consumer.subscribe([TOPIC_NAME])
     
     print(f"Консьюмер запущен (автокоммит). Группа: {GROUP_ID}")
+    print("Формат сообщений: AVRO (бинарный)")
     
     try:
         while True:
@@ -48,13 +61,13 @@ def main():
                 print(f"Ошибка: {msg.error()}")
                 continue
             
-            # Парсим сообщение
+            # Десериализуем сообщение из AVRO
             try:
-                event = json.loads(msg.value().decode('utf-8'))
+                event = deserialize_from_avro(msg.value())
                 print(f"\n[AUTO] Получено: {event['eventId']}")
                 process_event(event)
-            except json.JSONDecodeError as e:
-                print(f"Ошибка парсинга JSON: {e}")
+            except Exception as e:
+                print(f"Ошибка десериализации AVRO: {e}")
             
             # Автокоммит происходит автоматически
             time.sleep(0.5)
