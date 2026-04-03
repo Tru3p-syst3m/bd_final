@@ -108,7 +108,9 @@ services:
 
   # 7. Скрипт инициализации (создает топики и коннекторы)
   kafka-init:
-    build: ./kafka-producer
+    build:
+      context: .
+      dockerfile: Dockerfile.init
     container_name: kafka-init
     depends_on:
       - kafka
