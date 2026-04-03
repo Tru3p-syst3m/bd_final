@@ -1,0 +1,12 @@
+```
+# Dependencies
+node_modules/
+
+# Editors
+.docker/
+
+# Environment
+.env
+.env.local
+.env.*
+```
