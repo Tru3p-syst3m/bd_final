@@ -124,6 +124,8 @@ def aggregate_event(event):
 
 def windowed_count(event):
     """Оконное вычисление - количество заказов за 5 минут"""
+    global window_events
+    
     now = datetime.utcnow()
     window_start = now - timedelta(seconds=WINDOW_SIZE_SECONDS)
     
@@ -131,7 +133,6 @@ def windowed_count(event):
     window_events.append(now)
     
     # Удаляем старые события за пределами окна
-    global window_events
     window_events = [ts for ts in window_events if ts > window_start]
     
     count = len(window_events)
