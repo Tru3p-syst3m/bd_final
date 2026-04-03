@@ -106,18 +106,38 @@ services:
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kafka-connect
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
 
-  # 7. Твой Producer (Python)
-  kafka-producer:
+  # 7. Скрипт инициализации (создает топики и коннекторы)
+  kafka-init:
     build: ./kafka-producer
-    container_name: kafka-producer
+    container_name: kafka-init
     depends_on:
       - kafka
       - schema-registry
+      - kafka-connect
+      - postgres
+    command: ["./init-kafka.sh"]
+
+  # 8. Stream App (трансформация, агрегация, окна)
+  kafka-stream-app:
+    build: ./kafka-stream-app
+    container_name: kafka-stream-app
+    depends_on:
+      - kafka-init
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
 
-  # 8. Твой Consumer (Python)
+  # 9. Твой Producer (Python)
+  kafka-producer:
+    build: ./kafka-producer
+    container_name: kafka-producer
+    depends_on:
+      - kafka-init
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+
+  # 10. Твой Consumer (Python)
   kafka-consumer:
     build: ./kafka-consumer
     container_name: kafka-consumer
