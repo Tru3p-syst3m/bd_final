@@ -4,9 +4,10 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
 
-RUN pip install confluent-kafka requests
+RUN pip install confluent-kafka
 
-COPY src/ ./src/
+COPY src/stream_app.py ./stream_app.py
+COPY src/schema_loader.py ./schema_loader.py
 COPY schema/ ./schema/
 
-CMD ["python", "src/stream_app.py"]
+CMD ["python", "stream_app.py"]
