@@ -4,21 +4,29 @@ import time
 import random
 from datetime import datetime
 from confluent_kafka import Producer
-import fastavro
-from fastavro.schema import load_schema
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroSerializer
+from confluent_kafka.serialization import SerializationContext, MessageField
+
+# Загружаем схему из файла .avsc
+from schema_loader import get_order_event_schema
 
 # Конфигурация
 KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
+SCHEMA_REGISTRY_URL = "http://schema-registry:8081"
 TOPIC_NAME = "orders-events"
-SCHEMA_FILE = "/app/kafka/schema/event.avsc"  # Путь внутри Docker контейнера
+
+# Загружаем схему AVRO из файла
+AVRO_SCHEMA_STR = get_order_event_schema()
 
 # Типы событий
 EVENT_TYPES = ["OrderCreated", "OrderPaid", "OrderCancelled"]
 
-# Загружаем схему AVRO при старте
-print(f"Загрузка схемы AVRO из {SCHEMA_FILE}...")
-parsed_schema = fastavro.parse_schema(load_schema(SCHEMA_FILE))
-print("Схема успешно загружена и готова к использованию.")
+# Инициализация клиента Schema Registry и сериализатора
+print(f"Подключение к Schema Registry: {SCHEMA_REGISTRY_URL}...")
+schema_registry_client = SchemaRegistryClient({"url": SCHEMA_REGISTRY_URL})
+avro_serializer = AvroSerializer(schema_registry_client, AVRO_SCHEMA_STR)
+print("Сериализатор AVRO готов.")
 
 def get_producer_config():
     """Конфигурация продюсера"""
@@ -59,8 +67,11 @@ def get_status_by_type(event_type):
     return statuses.get(event_type, "unknown")
 
 def serialize_to_avro(event):
-    """Сериализация события в бинарный формат Avro"""
-    return fastavro.schemaless_writer.serialize(parsed_schema, event)
+    """Сериализация события в бинарный формат Avro через Schema Registry"""
+    return avro_serializer(
+        event, 
+        SerializationContext(TOPIC_NAME, MessageField.VALUE)
+    )
 
 def delivery_callback(err, msg):
     """Коллбек подтверждения доставки"""

@@ -5,14 +5,19 @@
     "connection.url": "jdbc:postgresql://postgres:5432/shopdb",
     "connection.user": "postgres",
     "connection.password": "postgres",
-    "topics": "shop-events",
+    "topics": "orders-events",
     "tasks.max": "1",
     "auto.create": "false",
-    "insert.mode": "insert",
+    "insert.mode": "upsert",
+    "pk.mode": "record_key",
+    "pk.fields": "entityId",
     "table.name.format": "orders",
-    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "key.converter.schemas.enable": "false",
-    "value.converter.schemas.enable": "false"
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "http://schema-registry:8081",
+    "fields.whitelist": "eventId,eventType,entityId,timestamp,source,version,payload.orderId,payload.customerId,payload.amount,payload.currency,payload.status",
+    "transforms": "unwrap",
+    "transforms.unwrap.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+    "transforms.unwrap.field": "payload"
   }
 }

@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "WindowedCount",
+  "namespace": "com.example.orders",
+  "fields": [
+    {"name": "window", "type": "string"},
+    {"name": "count", "type": "int"},
+    {"name": "timestamp", "type": "string"}
+  ]
+}
