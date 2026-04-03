@@ -1,36 +1,31 @@
 ```
-# Logs and temp files
-*.log
-*.tmp
+# Dependencies
+node_modules/
+
+# Docker/Kubernetes
+.docker/
+*.dockerignore
+.dockerenv
 
 # Environment
 .env
 .env.local
 .env.*
 
-# Dependencies
-node_modules/
+# Logs
+*.log
 
-# Editors
-.vscode/
-.idea/
+# Temporary files
+*.tmp
+*.temp
 
-# Docker/Kubernetes
-.docker/
-.kube/
-
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-dist/
-build/
-target/
+# OS generated files
+.DS_Store
+Thumbs.db
 
 # Python specific
-*.pyc
 __pycache__/
+*.pyc
 *.pyo
 *.pyd
 .Python
@@ -46,13 +41,33 @@ pip-delete-this-directory.txt
 nosetests.xml
 coverage.xml
 *.cover
-*.log
-.git/
+*.db
+*.sqlite
+*.sqlite3
+
+# Compiled and build artifacts
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
+dist/
+build/
+target/
 .mypy_cache/
 .pytest_cache/
-.hypothesis/
+coverage/
+htmlcov/
 
-# Compressed files
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archives
 *.zip
 *.gz
 *.tar
@@ -75,8 +90,4 @@ coverage.xml
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-
-# System files
-.DS_Store
-Thumbs.db
 ```

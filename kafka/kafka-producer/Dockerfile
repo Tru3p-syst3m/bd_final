@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
 
-RUN pip install confluent-kafka requests
+RUN pip install confluent-kafka requests httpx
 
 COPY src/producer.py ./producer.py
 COPY src/schema_loader.py ./schema_loader.py
