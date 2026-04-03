@@ -2,6 +2,46 @@
 
 Простая демонстрация работы с Kafka для учебного проекта.
 
+## Предварительная настройка (ВАЖНО!)
+
+### Шаг 0: Скачать JDBC коннектор
+
+Перед запуском нужно скачать JDBC коннектор вручную, чтобы не ждать его загрузку при сборке Docker.
+
+**Команда для скачивания:**
+```bash
+cd kafka
+mkdir -p jdbc-connector
+wget https://d1i4a15mxbxib1.cloudfront.net/api/plugins/confluentinc/kafka-connect-jdbc/versions/10.7.1/confluentinc-kafka-connect-jdbc-10.7.1.zip -O jdbc-connector/kafka-connect-jdbc.zip
+```
+
+Или через curl:
+```bash
+cd kafka
+mkdir -p jdbc-connector
+curl -L https://d1i4a15mxbxib1.cloudfront.net/api/plugins/confluentinc/kafka-connect-jdbc/versions/10.7.1/confluentinc-kafka-connect-jdbc-10.7.1.zip -o jdbc-connector/kafka-connect-jdbc.zip
+```
+
+**Распаковать архив:**
+```bash
+cd jdbc-connector
+unzip kafka-connect-jdbc.zip
+```
+
+После распаковки структура должна быть такой:
+```
+kafka/
+├── jdbc-connector/
+│   └── confluentinc-kafka-connect-jdbc-10.7.1/
+│       ├── lib/
+│       │   └── kafka-connect-jdbc-10.7.1.jar
+│       └── ...
+```
+
+Коннектор будет автоматически подключен через volume в docker-compose.yml.
+
+---
+
 ## Что делает система
 
 1. **Producer** - генерирует события заказов (OrderCreated, OrderPaid, OrderCancelled)
