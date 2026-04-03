@@ -95,6 +95,13 @@ curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
   $SCHEMA_REGISTRY/subjects/orders-windowed-count-value/versions
 echo "✓ Схема orders-windowed-count зарегистрирована"
 
+# Регистрируем схему для shop-db-orders (от Source коннектора)
+# Схема соответствует формату Kafka Connect Record с полями из таблицы orders
+curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  --data '{"schema": "{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.shop\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"customer_id\",\"type\":\"int\"},{\"name\":\"total_amount\",\"type\":\"double\"},{\"name\":\"status\",\"type\":\"string\"},{\"name\":\"created_at\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}"}' \
+  $SCHEMA_REGISTRY/subjects/shop-db-orders-value/versions
+echo "✓ Схема shop-db-orders зарегистрирована"
+
 echo ""
 echo "=== Регистрация коннекторов ==="
 

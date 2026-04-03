@@ -15,6 +15,10 @@
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "io.confluent.connect.avro.AvroConverter",
     "value.converter.schema.registry.url": "http://schema-registry:8081",
-    "fields.whitelist": "eventId,eventType,entityId,timestamp,source,version,payload.orderId,payload.customerId,payload.amount,payload.currency,payload.status"
+    "transforms": "unwrap,extractPayload",
+    "transforms.unwrap.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+    "transforms.unwrap.field": "payload",
+    "transforms.extractPayload.type": "org.apache.kafka.connect.transforms.Flatten$Value",
+    "fields.whitelist": "eventId,eventType,entityId,timestamp,source,version,orderId,customerId,amount,currency,status"
   }
 }
