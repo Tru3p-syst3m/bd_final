@@ -1,5 +1,6 @@
 import json
 import time
+import os
 from confluent_kafka import Consumer, KafkaException
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
@@ -9,10 +10,10 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 from schema_loader import get_order_event_schema
 
 # Конфигурация
-KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
-SCHEMA_REGISTRY_URL = "http://schema-registry:8081"
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "http://schema-registry:8081")
 TOPIC_NAME = "orders-events"
-GROUP_ID = "order-consumer-auto"
+GROUP_ID = os.getenv("CONSUMER_GROUP", "order-consumer-auto")
 
 # Инициализация клиента Schema Registry и десериализатора
 print(f"Подключение к Schema Registry: {SCHEMA_REGISTRY_URL}...")
