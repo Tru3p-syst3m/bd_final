@@ -137,10 +137,10 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
 
-  # 10. Твой Consumer (Python)
+  # 10. Твой Consumer (Python) - группа 1
   kafka-consumer:
     build: ./kafka-consumer
-    container_name: kafka-consumer
+    container_name: kafka-consumer-1
     depends_on:
       - kafka
       - schema-registry
@@ -152,6 +152,24 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: shopdb
+      CONSUMER_GROUP: consumer-group-1
+
+  # 11. Второй Consumer (Python) - группа 2
+  kafka-consumer-2:
+    build: ./kafka-consumer
+    container_name: kafka-consumer-2
+    depends_on:
+      - kafka
+      - schema-registry
+      - postgres
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: shopdb
+      CONSUMER_GROUP: consumer-group-2
 
 volumes:
   postgres_data:
