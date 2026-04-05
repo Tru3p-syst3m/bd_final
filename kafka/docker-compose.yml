@@ -219,5 +219,24 @@ services:
       - ./init/ch-init.sql:/scripts/ch-init.sql
     profiles: ["kafka"]
 
+  # 15. CloudBeaver - UI для ClickHouse
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: cloudbeaver
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8978:8978"
+    environment:
+      CB_SERVER_NAME: CloudBeaver
+      CB_ADMIN_NAME: admin
+      CB_ADMIN_PASSWORD: admin
+    volumes:
+      - cloudbeaver_data:/opt/cloudbeaver/workspace
+    profiles: ["kafka"]
+    networks:
+      - kafka-network
+
 volumes:
   clickhouse_data:
