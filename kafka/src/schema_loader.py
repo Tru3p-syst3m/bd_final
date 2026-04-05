@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 # Путь к директории со схемами
-SCHEMA_DIR = Path(__file__).parent.parent / "schema"
+SCHEMA_DIR = Path(__file__).parent / "schema"
 
 def load_schema(schema_name: str) -> str:
     schema_path = SCHEMA_DIR / f"{schema_name}.avsc"

@@ -56,12 +56,6 @@ kafka-topics --create --if-not-exists --topic orders-windowed-count \
   --partitions 1 --replication-factor 1
 echo "✓ Топик orders-windowed-count создан"
 
-# Топик для source connector (из БД)
-kafka-topics --create --if-not-exists --topic shop-db-orders \
-  --bootstrap-server $KAFKA_BROKER \
-  --partitions 3 --replication-factor 1
-echo "✓ Топик shop-db-orders создан"
-
 # DLQ топик для ошибок
 kafka-topics --create --if-not-exists --topic orders-dlq \
   --bootstrap-server $KAFKA_BROKER \
@@ -94,44 +88,3 @@ curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
   --data '{"schema": "'"$(cat /app/schema/windowed_event.avsc | tr -d '\n' | sed 's/"/\\"/g)"'"}' \
   $SCHEMA_REGISTRY/subjects/orders-windowed-count-value/versions
 echo "✓ Схема orders-windowed-count зарегистрирована"
-
-# Регистрируем схему для shop-db-orders (от Source коннектора)
-# Схема соответствует формату Kafka Connect Record с полями из таблицы orders
-curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  --data '{"schema": "{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.shop\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"customer_id\",\"type\":\"int\"},{\"name\":\"total_amount\",\"type\":\"double\"},{\"name\":\"status\",\"type\":\"string\"},{\"name\":\"created_at\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}"}' \
-  $SCHEMA_REGISTRY/subjects/shop-db-orders-value/versions
-echo "✓ Схема shop-db-orders зарегистрирована"
-
-echo ""
-echo "=== Регистрация коннекторов ==="
-
-# Регистрируем Sink коннектор (Kafka -> PostgreSQL)
-echo "Регистрируем Sink коннектор..."
-curl -X POST -H "Content-Type: application/json" \
-  --data @/app/config/sink_connector.json \
-  $KAFKA_CONNECT/connectors
-echo "✓ Sink коннектор зарегистрирован"
-
-# Даем время на запуск sink коннектора
-sleep 5
-
-# Регистрируем Source коннектор (PostgreSQL -> Kafka)
-echo "Регистрируем Source коннектор..."
-curl -X POST -H "Content-Type: application/json" \
-  --data @/app/config/source_connector.json \
-  $KAFKA_CONNECT/connectors
-echo "✓ Source коннектор зарегистрирован"
-
-echo ""
-echo "=== Проверка статуса коннекторов ==="
-sleep 3
-curl -s $KAFKA_CONNECT/connectors/postgres-sink-connector/status | python3 -m json.tool || true
-curl -s $KAFKA_CONNECT/connectors/postgres-source-connector/status | python3 -m json.tool || true
-
-echo ""
-echo "=== Инициализация завершена ==="
-echo "Топики:"
-kafka-topics --list --bootstrap-server $KAFKA_BROKER
-echo ""
-echo "Коннекторы:"
-curl -s $KAFKA_CONNECT/connectors | python3 -m json.tool || true
