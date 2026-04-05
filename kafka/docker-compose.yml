@@ -99,7 +99,6 @@ services:
       - kafka
       - schema-registry
       # - kafka-connect
-      - postgres
     command: ["./init-kafka.sh"]
 
   # 8. Stream App (трансформация, агрегация, окна)
@@ -121,7 +120,7 @@ services:
       dockerfile: kafka-producer/Dockerfile
     container_name: kafka-producer
     depends_on:
-      - kafka-init 
+      - kafka-init
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
@@ -133,16 +132,10 @@ services:
       dockerfile: kafka-consumer/Dockerfile
     container_name: kafka-consumer-1
     depends_on:
-      - kafka
-      - schema-registry
-      - postgres
+      - kafka-init
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      DB_HOST: postgres
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: shopdb
       CONSUMER_GROUP: consumer-group-1
 
   # 11. Второй Consumer (Python) - группа 2
@@ -152,16 +145,10 @@ services:
       dockerfile: kafka-consumer/Dockerfile
     container_name: kafka-consumer-2
     depends_on:
-      - kafka
-      - schema-registry
-      - postgres
+      - kafka-init
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      DB_HOST: postgres
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: shopdb
       CONSUMER_GROUP: consumer-group-2
 
 volumes:
