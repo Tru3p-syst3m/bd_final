@@ -31,6 +31,7 @@ docker compose --profile workers up --build -d
 
 Открой в браузере:
 - **Kafka UI**: http://localhost:8080 - посмотреть топики и сообщения
+- **ClickHouse UI**: http://localhost:8978 - посмотреть топики и сообщения
 
 ### 3. Логи сервисов
 

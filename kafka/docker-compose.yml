@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. Zookeeper - координатор кластера
   zookeeper:
@@ -117,7 +115,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
-    profiles: ["kafka"]
+    profiles: ["workers"]
 
   # 9. Твой Producer (Python)
   kafka-producer:
@@ -182,7 +180,7 @@ services:
 
   # 12. ClickHouse - колоночная БД для аналитики
   clickhouse:
-    image: clickhouse/clickhouse-server:23.8
+    image: clickhouse/clickhouse-server:latest
     container_name: clickhouse
     ports:
       - "8123:8123"  # HTTP интерфейс (для запросов через браузер/клиент)
@@ -190,10 +188,11 @@ services:
     environment:
       CLICKHOUSE_DB: analytics
       CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_PASSWORD: "Admin123"
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "0"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ./init/ch-init.sql:/docker-entrypoint-initdb.d/ch-init.sql  # Скрипты инициализации
+      - ./inits/ch-init.sql:/docker-entrypoint-initdb.d/ch-init.sql  # Скрипты инициализации
     ulimits:
       nofile:
         soft: 262144
@@ -202,7 +201,7 @@ services:
 
   # 13. Скрипт инициализации ClickHouse (создание таблиц, витрин)
   clickhouse-init:
-    image: clickhouse/clickhouse-client:23.8
+    image: clickhouse/clickhouse-client:latest
     container_name: clickhouse-init
     depends_on:
       - clickhouse
@@ -216,7 +215,7 @@ services:
       echo 'Running init script...';
       clickhouse-client --host clickhouse < /scripts/ch-init.sql
     volumes:
-      - ./init/ch-init.sql:/scripts/ch-init.sql
+      - ./inits/ch-init.sql:/scripts/ch-init.sql
     profiles: ["kafka"]
 
   # 15. CloudBeaver - UI для ClickHouse
@@ -224,19 +223,18 @@ services:
     image: dbeaver/cloudbeaver:latest
     container_name: cloudbeaver
     depends_on:
-      clickhouse:
-        condition: service_healthy
+      - clickhouse
     ports:
       - "8978:8978"
     environment:
       CB_SERVER_NAME: CloudBeaver
       CB_ADMIN_NAME: admin
       CB_ADMIN_PASSWORD: admin
+      CB_ANONYMOUS_ACCESS_ENABLED: "true"
     volumes:
       - cloudbeaver_data:/opt/cloudbeaver/workspace
     profiles: ["kafka"]
-    networks:
-      - kafka-network
 
 volumes:
   clickhouse_data:
+  cloudbeaver_data:

@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y netcat-openbsd curl default-jre-headles
 ENV PATH="/opt/kafka_2.13-3.4.0/bin:${PATH}"
 
 COPY schema/ ./schema/
-COPY init-kafka.sh ./init-kafka.sh
+COPY inits/init-kafka.sh ./init-kafka.sh
 RUN chmod +x ./init-kafka.sh
 
 CMD ["./init-kafka.sh"]
