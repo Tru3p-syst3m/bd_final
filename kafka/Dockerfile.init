@@ -5,7 +5,6 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
 
 COPY schema/ ./schema/
-COPY config/ ./config/
 COPY init-kafka.sh ./init-kafka.sh
 
 RUN chmod +x ./init-kafka.sh

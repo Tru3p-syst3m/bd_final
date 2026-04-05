@@ -1,4 +1,0 @@
-FROM confluentinc/cp-kafka-connect:7.5.0
-
-# JDBC коннектор монтируется через volume из ./jdbc-connector
-# RUN confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:latest

@@ -5,7 +5,7 @@ set -e
 
 KAFKA_BROKER="kafka:29092"
 SCHEMA_REGISTRY="http://schema-registry:8081"
-KAFKA_CONNECT="http://kafka-connect:8083"
+# KAFKA_CONNECT="http://kafka-connect:8083"
 
 echo "=== Инициализация Kafka ==="
 
@@ -24,11 +24,11 @@ done
 echo "Schema Registry доступен!"
 
 # Ждем доступности Kafka Connect
-echo "Ожидаем доступности Kafka Connect..."
-while ! curl -s $KAFKA_CONNECT > /dev/null; do
-  sleep 2
-done
-echo "Kafka Connect доступен!"
+# echo "Ожидаем доступности Kafka Connect..."
+# while ! curl -s $KAFKA_CONNECT > /dev/null; do
+#   sleep 2
+# done
+# echo "Kafka Connect доступен!"
 
 # Создаем топики
 echo ""
