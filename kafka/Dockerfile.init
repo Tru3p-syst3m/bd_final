@@ -2,11 +2,14 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y netcat-openbsd curl default-jre-headless \
+    && curl -sL https://archive.apache.org/dist/kafka/3.4.0/kafka_2.13-3.4.0.tgz | tar xz -C /opt \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/opt/kafka_2.13-3.4.0/bin:${PATH}"
 
 COPY schema/ ./schema/
 COPY init-kafka.sh ./init-kafka.sh
-
 RUN chmod +x ./init-kafka.sh
 
 CMD ["./init-kafka.sh"]

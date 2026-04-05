@@ -3,6 +3,8 @@
 
 set -e
 
+export PATH="/opt/kafka_2.13-3.4.0/bin:$PATH"
+
 KAFKA_BROKER="kafka:29092"
 SCHEMA_REGISTRY="http://schema-registry:8081"
 # KAFKA_CONNECT="http://kafka-connect:8083"
@@ -35,29 +37,29 @@ echo ""
 echo "=== Создание топиков ==="
 
 # Основной топик событий
-kafka-topics --create --if-not-exists --topic orders-events \
+kafka-topics.sh --create --if-not-exists --topic orders-events \
   --bootstrap-server $KAFKA_BROKER \
   --partitions 3 --replication-factor 1
 echo "✓ Топик orders-events создан"
 
 # Топики для Stream App
-kafka-topics --create --if-not-exists --topic orders-transformed \
+kafka-topics.sh --create --if-not-exists --topic orders-transformed \
   --bootstrap-server $KAFKA_BROKER \
   --partitions 3 --replication-factor 1
 echo "✓ Топик orders-transformed создан"
 
-kafka-topics --create --if-not-exists --topic customer-order-totals \
+kafka-topics.sh --create --if-not-exists --topic customer-order-totals \
   --bootstrap-server $KAFKA_BROKER \
   --partitions 3 --replication-factor 1
 echo "✓ Топик customer-order-totals создан"
 
-kafka-topics --create --if-not-exists --topic orders-windowed-count \
+kafka-topics.sh --create --if-not-exists --topic orders-windowed-count \
   --bootstrap-server $KAFKA_BROKER \
   --partitions 1 --replication-factor 1
 echo "✓ Топик orders-windowed-count создан"
 
 # DLQ топик для ошибок
-kafka-topics --create --if-not-exists --topic orders-dlq \
+kafka-topics.sh --create --if-not-exists --topic orders-dlq \
   --bootstrap-server $KAFKA_BROKER \
   --partitions 1 --replication-factor 1
 echo "✓ Топик orders-dlq создан"
