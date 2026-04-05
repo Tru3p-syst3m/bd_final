@@ -107,6 +107,8 @@ def transform_event(event):
 def aggregate_event(event):
     """Агрегация суммы заказов по клиенту"""
     customer_id = event["payload"].get("customerId", "unknown")
+    # тут дожно быть обращение к базе данных с поиском этого клиена
+    # но тут стоит заглушка
     amount = float(event["payload"].get("amount", 0))
     
     if event["eventType"] == "OrderPaid":
