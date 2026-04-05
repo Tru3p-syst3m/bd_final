@@ -1,7 +1,3 @@
-"""
-Загрузчик схем AVRO из файлов .avsc
-Используется для избегания дублирования схем в коде
-"""
 import json
 from pathlib import Path
 
@@ -9,15 +5,6 @@ from pathlib import Path
 SCHEMA_DIR = Path(__file__).parent.parent / "schema"
 
 def load_schema(schema_name: str) -> str:
-    """
-    Загружает схему AVRO из файла .avsc
-    
-    Args:
-        schema_name: имя файла схемы без расширения (например "event")
-    
-    Returns:
-        Строка с JSON схемой
-    """
     schema_path = SCHEMA_DIR / f"{schema_name}.avsc"
     
     if not schema_path.exists():
