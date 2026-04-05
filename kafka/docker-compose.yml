@@ -180,7 +180,7 @@ services:
       CONSUMER_GROUP: clickhouse-consumer
     profiles: ["workers"]
 
-    # 12. ClickHouse - колоночная БД для аналитики
+  # 12. ClickHouse - колоночная БД для аналитики
   clickhouse:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse
@@ -193,7 +193,7 @@ services:
       CLICKHOUSE_PASSWORD: ""
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ./clickhouse/init:/docker-entrypoint-initdb.d  # Скрипты инициализации
+      - ./init/ch-init.sql:/docker-entrypoint-initdb.d/ch-init.sql  # Скрипты инициализации
     ulimits:
       nofile:
         soft: 262144
@@ -216,7 +216,7 @@ services:
       echo 'Running init script...';
       clickhouse-client --host clickhouse < /scripts/ch-init.sql
     volumes:
-      - ./clickhouse/init:/scripts
+      - ./init/ch-init.sql:/scripts/ch-init.sql
     profiles: ["kafka"]
 
 volumes:
