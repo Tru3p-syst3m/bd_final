@@ -10,6 +10,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    profiles: ["kafka"]
 
   # 2. Kafka Broker - основной сервер сообщений
   kafka:
@@ -28,6 +29,7 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    profiles: ["kafka"]
 
   # 3. Schema Registry - валидатор схем данных
   schema-registry:
@@ -40,6 +42,7 @@ services:
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
+    profiles: ["kafka"]
 
   # 4. Kafka Connect - мост между Kafka и БД
   # kafka-connect:
@@ -88,48 +91,52 @@ services:
       KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
       # KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kafka-connect
       # KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
+    profiles: ["kafka"]
 
   # 7. Скрипт инициализации (создает топики и коннекторы)
   kafka-init:
     build:
       context: .
-      dockerfile: Dockerfile.init
+      dockerfile: inits/Dockerfile.init
     container_name: kafka-init
     depends_on:
       - kafka
       - schema-registry
       # - kafka-connect
     command: ["./init-kafka.sh"]
+    profiles: ["kafka"]
 
   # 8. Stream App (трансформация, агрегация, окна)
   kafka-stream-app:
     build:
       context: .
-      dockerfile: kafka-stream-app/Dockerfile
+      dockerfile: kafka-workers/kafka-stream-app/Dockerfile
     container_name: kafka-stream-app
     depends_on:
       - kafka-init
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    profiles: ["kafka"]
 
   # 9. Твой Producer (Python)
   kafka-producer:
     build:
       context: .
-      dockerfile: kafka-producer/Dockerfile
+      dockerfile: kafka-workers/kafka-producer/Dockerfile
     container_name: kafka-producer
     depends_on:
       - kafka-init
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    profiles: ["workers"]
 
   # 10. Твой Consumer (Python) - группа 1
-  kafka-consumer:
+  kafka-consumer-1:
     build:
       context: .
-      dockerfile: kafka-consumer/Dockerfile
+      dockerfile: kafka-workers/kafka-consumer/Dockerfile
     container_name: kafka-consumer-1
     depends_on:
       - kafka-init
@@ -137,12 +144,13 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       CONSUMER_GROUP: consumer-group-1
+    profiles: ["workers"]
 
   # 11. Второй Consumer (Python) - группа 2
   kafka-consumer-2:
     build:
       context: .
-      dockerfile: kafka-consumer/Dockerfile
+      dockerfile: kafka-workers/kafka-consumer/Dockerfile
     container_name: kafka-consumer-2
     depends_on:
       - kafka-init
@@ -150,6 +158,42 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       CONSUMER_GROUP: consumer-group-2
+    profiles: ["workers"]
+
+    # 12. ClickHouse - колоночная БД для аналитики
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse
+    ports:
+      - "8123:8123"  # HTTP интерфейс (для запросов через браузер/клиент)
+      - "9000:9000"  # Нативный TCP порт
+    environment:
+      CLICKHOUSE_DB: analytics
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/init:/docker-entrypoint-initdb.d  # Скрипты инициализации
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # 13. Скрипт инициализации ClickHouse (создание таблиц, витрин)
+  clickhouse-init:
+    image: clickhouse/clickhouse-client:23.8
+    container_name: clickhouse-init
+    depends_on:
+      - clickhouse
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "until clickhouse-client --host clickhouse --query 'SELECT 1' > /dev/null 2>&1; do 
+        echo 'Waiting for ClickHouse...'; 
+        sleep 2; 
+      done; 
+      echo 'ClickHouse is ready!';
+    volumes:
+      - ./clickhouse/init:/scripts
 
 volumes:
-  postgres_data:
+  clickhouse_data:
