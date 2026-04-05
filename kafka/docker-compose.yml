@@ -160,6 +160,26 @@ services:
       CONSUMER_GROUP: consumer-group-2
     profiles: ["workers"]
 
+  # 13. Consumer Connect - потребитель для отправки данных в ClickHouse
+  kafka-consumer-connect:
+    build:
+      context: .
+      dockerfile: kafka-workers/kafka-consumer/Dockerfile.connect
+    container_name: kafka-consumer-connect
+    depends_on:
+      - kafka-init
+      - clickhouse-init
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 9000
+      CLICKHOUSE_DB: analytics
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CONSUMER_GROUP: clickhouse-consumer
+    profiles: ["workers"]
+
     # 12. ClickHouse - колоночная БД для аналитики
   clickhouse:
     image: clickhouse/clickhouse-server:23.8
@@ -178,6 +198,7 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+    profiles: ["kafka"]
 
   # 13. Скрипт инициализации ClickHouse (создание таблиц, витрин)
   clickhouse-init:
@@ -187,13 +208,16 @@ services:
       - clickhouse
     entrypoint: ["/bin/sh", "-c"]
     command: |
-      "until clickhouse-client --host clickhouse --query 'SELECT 1' > /dev/null 2>&1; do 
-        echo 'Waiting for ClickHouse...'; 
-        sleep 2; 
-      done; 
+      until clickhouse-client --host clickhouse --query 'SELECT 1' > /dev/null 2>&1; do
+        echo 'Waiting for ClickHouse...';
+        sleep 2;
+      done;
       echo 'ClickHouse is ready!';
+      echo 'Running init script...';
+      clickhouse-client --host clickhouse < /scripts/ch-init.sql
     volumes:
       - ./clickhouse/init:/scripts
+    profiles: ["kafka"]
 
 volumes:
   clickhouse_data:
