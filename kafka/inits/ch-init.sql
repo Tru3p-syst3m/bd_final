@@ -45,6 +45,7 @@ SETTINGS index_granularity = 8192;
 -- ============================================
 CREATE TABLE IF NOT EXISTS order_windows
 (
+    customerId    String,
     window        String,
     count         UInt64,
     timestamp     DateTime64(3),

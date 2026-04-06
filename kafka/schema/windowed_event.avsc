@@ -3,6 +3,7 @@
   "name": "WindowedCount",
   "namespace": "com.example.orders",
   "fields": [
+    {"name": "customerId", "type": "string"},
     {"name": "window", "type": "string"},
     {"name": "count", "type": "int"},
     {"name": "timestamp", "type": "string"}

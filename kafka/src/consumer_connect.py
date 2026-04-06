@@ -8,6 +8,14 @@ from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.serialization import SerializationContext, MessageField
 from clickhouse_driver import Client
 from schema_loader import load_schema
+from datetime import datetime
+
+def parse_ts(ts_str: str):
+    if not ts_str: return None
+    # Python < 3.11 не ест 'Z' напрямую
+    dt = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+    # В схеме DateTime64(3) без таймзоны → убираем tzinfo
+    return dt.replace(tzinfo=None)
 
 # ============================================
 # Конфигурация
@@ -87,8 +95,8 @@ def insert_to_orders_raw(events: List[Dict[str, Any]]):
             e.get('eventId', ''),
             e.get('eventType', ''),
             e.get('entityId', ''),
-            ts.replace('T', ' ').replace('Z', '') if ts else None,
-            processed.replace('T', ' ').replace('Z', '') if processed else None,
+            parse_ts(ts),
+            parse_ts(processed),
             e.get('source', ''),
             e.get('version', ''),
             payload.get('orderId', ''),
@@ -119,7 +127,7 @@ def insert_to_customer_totals(events: List[Dict[str, Any]]):
             e.get('customerId', ''),
             float(e.get('totalAmount', 0)),
             e.get('currency', ''),
-            ts.replace('T', ' ').replace('Z', '') if ts else None,
+            parse_ts(ts),
         ))
     
     ch_client.execute(query, values)
@@ -132,7 +140,7 @@ def insert_to_order_windows(events: List[Dict[str, Any]]):
     
     query = """
     INSERT INTO order_windows 
-    (window, count, timestamp)
+    (customerId, window, count, timestamp)
     VALUES
     """
     
@@ -140,9 +148,10 @@ def insert_to_order_windows(events: List[Dict[str, Any]]):
     for e in events:
         ts = e.get('timestamp', '')
         values.append((
+            e.get('customerId', ''),
             e.get('window', ''),
             int(e.get('count', 0)),
-            ts.replace('T', ' ').replace('Z', '') if ts else None,
+            parse_ts(ts),
         ))
     
     ch_client.execute(query, values)

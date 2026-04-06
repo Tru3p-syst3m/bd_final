@@ -39,8 +39,10 @@ def get_producer_config():
 def create_event(event_type):
     """Создание события по единому формату (соответствует схеме AVRO)"""
     order_id = f"order-{random.randint(1000, 9999)}"
-    customer_id = f"customer-{random.randint(1, 100)}"
-    amount = round(random.uniform(100, 5000), 2)
+    customer_id = f"customer-{random.randint(1, 10)}"
+    if event_type == "OrderPaid": 
+        amount = round(random.uniform(100, 5000), 2)
+    else: amount = 0
     
     return {
         "eventId": str(uuid.uuid4()),

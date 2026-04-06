@@ -24,6 +24,7 @@ from schema_loader import (
     get_aggregated_event_schema,
     get_windowed_event_schema
 )
+customer_window_data = defaultdict(list)
 
 # Конфигурация
 KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
@@ -126,21 +127,25 @@ def aggregate_event(event):
 
 def windowed_count(event):
     """Оконное вычисление - количество заказов за 5 минут"""
-    global window_events
-    
     now = datetime.utcnow()
-    window_start = now - timedelta(seconds=WINDOW_SIZE_SECONDS)
+    window_start = now - timedelta(seconds=60)
     
-    # Добавляем текущее событие
-    window_events.append(now)
+    cust_id = event["payload"]["customerId"]
+    amount = float(event["payload"]["amount"])
     
-    # Удаляем старые события за пределами окна
-    window_events = [ts for ts in window_events if ts > window_start]
-    
-    count = len(window_events)
+    # Фиксируем только оплаты
+    customer_window_data[cust_id].append((now, amount))
+        
+    # Удаляем записи старше 1 минуты
+    customer_window_data[cust_id] = [
+        (ts, amt) for ts, amt in customer_window_data[cust_id] 
+        if ts > window_start
+    ]
+    count = sum(amt for _, amt in customer_window_data[cust_id])
     
     result = {
-        "window": "5min",
+        "customerId": cust_id,
+        "window": "1min",
         "count": count,
         "timestamp": now.isoformat()
     }
@@ -201,14 +206,15 @@ def main():
                     print(f"  [AGGREGATE] {agg_result['customerId']}: {total:.2f} RUB")
                 
                 # 3. Оконное вычисление
-                window_result, count = windowed_count(event)
-                producer.produce(
-                    topic=TOPIC_WINDOWED,
-                    key=b"order_count",
-                    value=windowed_serializer(window_result, SerializationContext(TOPIC_WINDOWED, MessageField.VALUE)),
-                    callback=lambda err, msg: print(f"  [WINDOW] Отправлено в {msg.topic()}") if not err else print(f"  [WINDOW] Ошибка: {err}")
-                )
-                print(f"  [WINDOW] За 5 мин: {count} заказов")
+                if event.get("eventType") == "OrderPaid":
+                    window_result, count = windowed_count(event)
+                    producer.produce(
+                        topic=TOPIC_WINDOWED,
+                        key=window_result["customerId"].encode('utf-8'), 
+                        value=windowed_serializer(window_result, SerializationContext(TOPIC_WINDOWED, MessageField.VALUE)),
+                        callback=lambda err, msg: print(f"  [WINDOW] Отправлено в {msg.topic()}") if not err else print(f"  [WINDOW] Ошибка: {err}")
+                    )
+                    print(f"  [WINDOW] За 5 мин: {count} заказов")
                 
                 producer.flush()
                 
