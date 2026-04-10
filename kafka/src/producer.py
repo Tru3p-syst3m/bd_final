@@ -3,31 +3,59 @@ import uuid
 import time
 import random
 import os
+import sqlite3
 from datetime import datetime
 from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 from confluent_kafka.serialization import SerializationContext, MessageField
-
-# Загружаем схему из файла .avsc
 from schema_loader import get_order_event_schema
 
-# Конфигурация - читаем из переменных окружения
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "http://schema-registry:8081")
 TOPIC_NAME = os.getenv("TOPIC_NAME", "orders-events")
-
-# Загружаем схему AVRO из файла
 AVRO_SCHEMA_STR = get_order_event_schema()
 
-# Типы событий
-EVENT_TYPES = ["OrderCreated", "OrderPaid", "OrderCancelled"]
-
-# Инициализация клиента Schema Registry и сериализатора
+# Инициализация Schema Registry и сериализатора
 print(f"Подключение к Schema Registry: {SCHEMA_REGISTRY_URL}...")
 schema_registry_client = SchemaRegistryClient({"url": SCHEMA_REGISTRY_URL})
 avro_serializer = AvroSerializer(schema_registry_client, AVRO_SCHEMA_STR)
 print("Сериализатор AVRO готов.")
+
+# Инициализация SQLite
+DB_PATH = os.getenv("DB_PATH", "orders.db")
+sqlite_connection = sqlite3.connect(DB_PATH)
+print(f"SQLite подключен: {DB_PATH}")
+
+# Типы событий
+EVENT_TYPES = ["OrderCreated", "OrderPaid", "OrderCancelled"]
+order_id_increment = 0
+
+def init_db(connection):
+    """Инициализация таблицы заказов в SQLite"""
+    cursor = connection.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            order_id TEXT PRIMARY KEY,
+            customer_id TEXT NOT NULL,
+            status TEXT NOT NULL
+        )
+    """)
+    connection.commit()
+    print("Таблица orders инициализирована.")
+
+def write_order_to_db(connection, order_id, customer_id, status):
+    """Запись заказа в таблицу SQLite"""
+    cursor = connection.cursor()
+    try:
+        cursor.execute(
+            "INSERT OR REPLACE INTO orders (order_id, customer_id, status) VALUES (?, ?, ?)",
+            (order_id, customer_id, status)
+        )
+        connection.commit()
+        print(f"Заказ сохранен: {order_id} -> {status}")
+    except sqlite3.Error as e:
+        print(f"Ошибка записи в БД: {e}")
 
 def get_producer_config():
     """Конфигурация продюсера"""
@@ -72,7 +100,7 @@ def get_status_by_type(event_type):
 def serialize_to_avro(event):
     """Сериализация события в бинарный формат Avro через Schema Registry"""
     return avro_serializer(
-        event, 
+        event,
         SerializationContext(TOPIC_NAME, MessageField.VALUE)
     )
 
@@ -85,6 +113,7 @@ def delivery_callback(err, msg):
 
 def main():
     """Основной цикл продюсера"""
+    init_db(sqlite_connection)
     producer = Producer(get_producer_config())
     
     print(f"Продюсер запущен. Топик: {TOPIC_NAME}")
@@ -111,7 +140,16 @@ def main():
             value=avro_message,
             callback=delivery_callback
         )
-        
+
+        # Сохраняем заказ в SQLite
+        payload = event["payload"]
+        write_order_to_db(
+            sqlite_connection,
+            payload["orderId"],
+            payload["customerId"],
+            payload["status"]
+        )
+
         counter += 1
         print(f"[{counter}] Отправлено: {event_type} для {event['entityId']} (AVRO)")
         
