@@ -64,14 +64,32 @@ def get_producer_config():
         'client.id': 'order-producer'
     }
 
-def create_event(event_type):
+def get_customer_orders_with_status(connection, customer_id, status):
+    """Получить все заказы покупателя с указанным статусом"""
+    cursor = connection.cursor()
+    cursor.execute(
+        "SELECT order_id FROM orders WHERE customer_id = ? AND status = ?",
+        (customer_id, status)
+    )
+    return [row[0] for row in cursor.fetchall()]
+
+def create_event(connection):
     """Создание события по единому формату (соответствует схеме AVRO)"""
-    order_id = f"order-{random.randint(1000, 9999)}"
     customer_id = f"customer-{random.randint(1, 10)}"
-    if event_type == "OrderPaid": 
-        amount = round(random.uniform(100, 5000), 2)
-    else: amount = 0
-    
+
+    created_orders = get_customer_orders_with_status(connection, customer_id, "created")
+    choice = random.randint(0, 10)
+    if created_orders & choice > 3:
+        order_id = random.choice(created_orders)
+        event_type = random.choice(["OrderPaid", "OrderCancelled"])
+        status = get_status_by_type(event_type)
+    else:
+        event_type = "OrderCreated"
+        order_id = f"order-{random.randint(1000, 9999)}"
+        status = get_status_by_type(event_type)
+
+    amount = round(random.uniform(100, 5000), 2) if event_type == "OrderPaid" else 0
+
     return {
         "eventId": str(uuid.uuid4()),
         "eventType": event_type,
@@ -84,7 +102,7 @@ def create_event(event_type):
             "customerId": customer_id,
             "amount": amount,
             "currency": "RUB",
-            "status": get_status_by_type(event_type)
+            "status": status
         }
     }
 
@@ -121,12 +139,9 @@ def main():
     
     counter = 0
     while True:
-        # Выбираем случайный тип события
-        event_type = random.choice(EVENT_TYPES)
-        
-        # Создаем событие
-        event = create_event(event_type)
-        
+        # Создаём событие с проверкой БД
+        event = create_event(sqlite_connection)
+
         # Сериализуем в AVRO
         avro_message = serialize_to_avro(event)
         
@@ -151,7 +166,7 @@ def main():
         )
 
         counter += 1
-        print(f"[{counter}] Отправлено: {event_type} для {event['entityId']} (AVRO)")
+        print(f"[{counter}] Отправлено: {event['eventType']} для {event['entityId']} (AVRO)")
         
         # Флеш и пауза
         producer.flush()
